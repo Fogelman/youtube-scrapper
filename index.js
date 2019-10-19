@@ -1,5 +1,5 @@
 const AWS = require("aws-sdk");
-const { parseAbout, parseChannel, randomValueHex } = require("./parse");
+const { parseAbout, parseChannel } = require("./parse");
 const axios = require("axios");
 const uuid = require("uuid/v4");
 
@@ -7,7 +7,7 @@ const s3 = new AWS.S3();
 const lambda = new AWS.Lambda();
 
 const uploadParams = {
-  Bucket: "youtube-redes2",
+  Bucket: process.env.bucket,
   Key: "",
   Body: ""
 };
@@ -47,25 +47,27 @@ exports.handle = async ({ name, href, depth, maxDepth, sufix }, context) => {
 
     if (depth < maxDepth) {
       await Promise.all(
-        ch.links.map(el =>
-          lambda
+        ch.links.map(el => {
+          const p = JSON.stringify(
+            {
+              name: el[0],
+              href: el[1],
+              maxDepth: maxDepth,
+              depth: depth + 1,
+              sufix
+            },
+            null,
+            2
+          );
+
+          return lambda
             .invoke({
-              FunctionName: "nodeless-dev-channel",
-              Payload: JSON.stringify(
-                {
-                  name: el[0],
-                  href: el[1],
-                  maxDepth: maxDepth,
-                  depth: depth + 1,
-                  sufix
-                },
-                null,
-                2
-              ),
+              FunctionName: process.env.AWS_LAMBDA_FUNCTION_NAME,
+              Payload: p,
               InvocationType: "Event"
             })
-            .promise()
-        )
+            .promise();
+        })
       );
     }
   } catch (error) {
