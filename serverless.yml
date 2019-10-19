@@ -16,11 +16,15 @@ provider:
       Action:
         - "lambda:InvokeFunction"
       Resource:
-        - "arn:aws:s3:::*"
+        Fn::Join:
+          - ""
+          - - "arn:aws:lambda:us-east-1:"
+            - Ref: AWS::AccountId
+            - ":function:nodeless-dev-channel"
 
 functions:
   channel:
     handler: index.handle
-    timeout: 5
+    timeout: 10
     environment:
-      bucket: youtube-redes
+      bucket: youtube-redes2

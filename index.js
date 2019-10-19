@@ -5,10 +5,9 @@ const uuid = require("uuid/v4");
 
 const s3 = new AWS.S3();
 const lambda = new AWS.Lambda();
-// { apiVersion: "2006-03-01" }
 
 const uploadParams = {
-  Bucket: "youtube-redes",
+  Bucket: "youtube-redes2",
   Key: "",
   Body: ""
 };
@@ -17,8 +16,15 @@ const api = axios.create({
   baseURL: "https://www.youtube.com/"
 });
 
-exports.handle = async ({ name, href, depth, maxDepth }, context) => {
+exports.handle = async ({ name, href, depth, maxDepth, sufix }, context) => {
   uploadParams.Key = uuid();
+  if (sufix) {
+    uploadParams.Key += "=" + sufix;
+  }
+
+  if (!href && href !== "") {
+    return {};
+  }
 
   const response = await Promise.all([
     api.get(`${href}/about`).then(async ({ data }) => {
@@ -39,33 +45,32 @@ exports.handle = async ({ name, href, depth, maxDepth }, context) => {
 
     await s3.upload(uploadParams).promise();
 
-    const Payload = JSON.stringify(
-      {
-        name: el[0],
-        href: el[1],
-        maxDepth: maxDepth,
-        depth: depth + 1
-      },
-      null,
-      2
-    );
-
     if (depth < maxDepth) {
       await Promise.all(
         ch.links.map(el =>
           lambda
             .invoke({
               FunctionName: "nodeless-dev-channel",
-              Payload,
+              Payload: JSON.stringify(
+                {
+                  name: el[0],
+                  href: el[1],
+                  maxDepth: maxDepth,
+                  depth: depth + 1,
+                  sufix
+                },
+                null,
+                2
+              ),
               InvocationType: "Event"
             })
             .promise()
         )
       );
     }
-  } catch (e) {
+  } catch (error) {
     return {
-      error: e
+      error
     };
   }
   return {};
